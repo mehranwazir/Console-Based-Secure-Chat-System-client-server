@@ -1,22 +1,23 @@
-SecureChat – Assignment #2 (CS-3002 Information Security, Fall 2025)
+# SecureChat – Assignment #2
 
-A fully implemented, cryptographically secure, console-based chat system using:
+**CS-3002 Information Security, Fall 2025**
 
-X.509 certificates (PKI)
+A console-based, PKI-enabled secure chat system implemented entirely at the **application layer (no TLS)**.
+SecureChat demonstrates:
 
-Diffie–Hellman key exchange
+* X.509 certificates (PKI)
+* Diffie–Hellman key exchange
+* AES-128 encryption (CBC + PKCS#7)
+* RSA SHA-256 digital signatures
+* Sequence numbers & timestamps
+* Replay attack protection
+* Non-repudiation with signed transcripts
 
-AES-128 encryption (CBC + PKCS#7)
+---
 
-RSA SHA-256 signatures
+## 📁 Project Structure
 
-Sequence numbers & timestamps
-
-Non-repudiation via transcript signing
-
-All cryptographic operations are performed at the application layer (no TLS).
-
-📁 Project Structure
+```
 securechat-skeleton/
 ├── app/
 │   ├── client.py
@@ -35,236 +36,277 @@ securechat-skeleton/
 ├── scripts/
 │   ├── gen_ca.py
 │   ├── gen_cert.py
-├── transcripts/
+├── transcripts/          
 ├── certs/
 ├── .env.example
 ├── requirements.txt
 └── README.md
+```
 
-⚙️ 1. Setup Instructions
-1.1 Clone & create virtual environment
-git clone <your-fork-url>
-cd securechat-skeleton
+---
+
+# ⚙️ 1 — Setup Instructions
+
+## 1.1 Create virtual environment
+
+### Windows PowerShell
+
+```powershell
 python -m venv .venv
-.\.venv\Scripts\activate        # Windows
+.\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
+```
 
-1.2 Configure MySQL
+### Linux / macOS
 
-Create database and user (via MySQL Workbench or CLI):
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
 
+---
+
+# 🗄️ 2 — Configure MySQL
+
+Create database + user:
+
+```sql
 CREATE DATABASE securechat;
 CREATE USER 'scuser'@'localhost' IDENTIFIED BY 'scpass';
 GRANT ALL PRIVILEGES ON securechat.* TO 'scuser'@'localhost';
 FLUSH PRIVILEGES;
+```
 
-1.3 Configure .env
+Copy `.env.example` → `.env`:
 
-Create .env in root directory:
-
+```
 DB_HOST=127.0.0.1
 DB_USER=scuser
 DB_PASS=scpass
 DB_NAME=securechat
+```
 
-1.4 Initialize database schema
+Initialize database schema:
+
+```bash
 python -m app.storage.db --init
+```
 
+Output:
 
-You should see:
-
+```
 [+] MySQL 'users' table created
+```
 
-🔐 2. Generate Certificates (PKI)
-2.1 Create Root CA
-python scripts/gen_ca.py --name "FAST-NU Root CA"
+---
 
+# 🔐 3 — Generate Certificates (PKI)
 
-Produces:
+All certificate generation commands are included.
 
-certs/ca.key.pem
+## 3.1 Create Root CA
 
-certs/ca.crt.pem
+```bash
+python scripts/gen_ca.py --name "FAST-NU Root CA" --out certs/ca
+```
 
-2.2 Issue certificates
-python scripts/gen_cert.py --cn server.local --out certs/server
-python scripts/gen_cert.py --cn client.local --out certs/client
+Creates:
 
+* `certs/ca.crt.pem`
+* `certs/ca.key.pem`  
 
-Produces:
+## 3.2 Issue server & client certificates
 
-server.key.pem
+```bash
+python scripts/gen_cert.py --ca certs/ca.crt.pem --cakey certs/ca.key.pem --cn server.local --out certs/server
+python scripts/gen_cert.py --ca certs/ca.crt.pem --cakey certs/ca.key.pem --cn client.local --out certs/client
+```
 
-server.crt.pem
+Creates:
 
-client.key.pem
+* `server.crt.pem`, `server.key.pem`
+* `client.crt.pem`, `client.key.pem`
 
-client.crt.pem
+---
 
-🚫 Do NOT commit any .key.pem files.
+# 🔎 3.3 — Commands to **View/Inspect Certificates**
 
-🔄 3. Running the System
-3.1 Start Server
+These are essential for PKI demonstration.
+Run them after generating certs.
+
+---
+
+## 📌 View Root CA certificate
+
+```bash
+openssl x509 -in certs/ca.crt.pem -noout -text
+```
+
+## 📌 View Server certificate
+
+```bash
+openssl x509 -in certs/server.crt.pem -noout -text
+```
+
+## 📌 View Client certificate
+
+```bash
+openssl x509 -in certs/client.crt.pem -noout -text
+```
+
+---
+
+## 📌 Print Certificate Fingerprints
+
+SHA-256 fingerprint:
+
+```bash
+openssl x509 -in certs/server.crt.pem -fingerprint -sha256 -noout
+```
+
+MD5 fingerprint:
+
+```bash
+openssl x509 -in certs/server.crt.pem -fingerprint -md5 -noout
+```
+
+---
+
+## 📌 Verify Certificate Signature Using CA
+
+```bash
+openssl verify -CAfile certs/ca.crt.pem certs/server.crt.pem
+openssl verify -CAfile certs/ca.crt.pem certs/client.crt.pem
+```
+
+Expected output:
+
+```
+certs/server.crt.pem: OK
+certs/client.crt.pem: OK
+```
+
+---
+
+## 📌 View Public Key inside any cert
+
+```bash
+openssl x509 -in certs/server.crt.pem -pubkey -noout
+```
+
+---
+
+## 📌 Print certificate validity period (important for PKI)
+
+```bash
+openssl x509 -in certs/server.crt.pem -noout -dates
+```
+
+---
+
+# 🔄 4 — Running SecureChat
+
+### Start Server
+
+```bash
 python -m app.server
+```
 
+### Start Client (New Terminal)
 
-You should see:
-
-[*] Listening on 0.0.0.0:9000
-
-3.2 Start Client
+```bash
 python -m app.client
+```
 
+Expected flow:
 
-Client performs:
+* Certificate exchange
+* Certificate validation
+* Temporary DH → AES_TEMP_KEY
+* Encrypted register/login
+* New DH → SESSION_KEY
+* Secure chat mode
+* `/quit` generates transcript + receipt
 
-Certificate exchange
+---
 
-Certificate validation
+# 💬 5 — Secure Messaging Format
 
-Temporary DH → AES_TEMP_KEY
-
-Encrypted registration/login
-
-New DH session → SESSION_KEY
-
-Enter chat mode
-
-💬 4. Chat Usage
-Sending a message
-
-Type in client or server:
-
-> hello
-
-
-Messages are encrypted, signed, timestamped, and logged in transcript.
-
-Quit chat
-/quit
-
-
-Generates a SessionReceipt in transcripts/.
-
-🔒 5. Security Features
-5.1 PKI & Certificate Validation
-
-Client & Server send certificates
-
-Validate:
-
-CA signature
-
-validity period
-
-Common Name (CN)
-
-Rejects self-signed or mismatched CN (BAD_CERT)
-
-5.2 Encrypted Registration/Login
-
-Temporary DH exchange creates AES_TEMP_KEY
-
-Credentials encrypted with AES-128-CBC
-
-Server stores:
-
-salt (16 bytes)
-
-pwd_hash = SHA256(salt || password)
-
-5.3 Session DH & AES-128
-
-New DH exchange after login:
-
-SESSION_KEY = Trunc16(SHA256(shared_secret))
-
-
-Used for all chat messages.
-
-5.4 Secure Messaging
-
-Each message contains:
-
+```json
 {
   "type": "msg",
-  "seqno": n,
-  "ts": unix_ms,
-  "ct": base64(AES(ciphertext)),
-  "sig": base64(RSA_SIGN(SHA256(seqno || ts || ct)))
+  "seqno": <int>,
+  "ts": <unix_ms>,
+  "ct": "<AES-CBC ciphertext (base64)>",
+  "sig": "<RSA signature over SHA256(seqno||ts||ct)>"
 }
-
+```
 
 Provides:
 
-Confidentiality (AES)
+* Confidentiality → AES-128
+* Integrity → SHA-256 digest
+* Authenticity → RSA-2048 signature
+* Freshness → seqno + timestamp
+* Replay protection
 
-Integrity (SHA256)
+---
 
-Authenticity (RSA)
+# 🧾 6 — Transcripts & Non-Repudiation
 
-Replay protection (seqno, ts)
+Every chat session generates two files:
 
-5.5 Non-Repudiation
+### 1. Transcript
 
-Each side maintains a transcript:
+```
+transcripts/server_YYYYMMDD_HHMMSS.log
+```
 
-seqno | timestamp | ciphertext | signature | peer_cert_fp
+### 2. Signed Receipt
 
+```
+transcripts/server_receipt_YYYYMMDD_HHMMSS.json
+```
 
-At /quit, a SessionReceipt is created:
+Receipt structure:
 
+```json
 {
   "type": "receipt",
-  "peer": "client",
+  "peer": "server",
   "first seq": 1,
   "last seq": 5,
-  "transcript sha256": "....",
+  "transcript sha256": "...",
   "sig": "RSA_SIGNATURE"
 }
+```
+
+---
+
+# 🧪 7 — Verify Transcript Offline
+
+Run:
+
+```bash
+python verify_transcript.py 
+```
+
+Successful verification prints:
+
+```
+[PASS] Non-repudiation verification SUCCESS ✔
+```
+
+---
 
 
-Receipt signature is verified offline.
+# 📝 8 — Author
 
-🧪 6. Testing & Evidence Required (All Passed)
-✔ Wireshark: encrypted packets only
-✔ BAD_CERT test
-✔ Tampering test → SIG_FAIL
-✔ Replay attack → REPLAY detected
-✔ Transcript SHA256 + Receipt signature verification
-✔ Login & register encrypted
-✔ DH secret → matching AES keys
+**Name:** Mehran
+**Roll Number:** 22i-0810
+**Course:** CS-3002 Information Security – FAST NUCES
 
-Screenshots included in TestReport.
+---
 
-🗂 7. MySQL Schema Dump Example
-
-mysql_schema.sql:
-
-CREATE TABLE users (
-  email VARCHAR(255),
-  username VARCHAR(255) UNIQUE,
-  salt BINARY(16),
-  pwd_hash CHAR(64)
-);
-
-🚫 8. Items Not Committed to GitHub
-
-All private keys (*.key.pem)
-
-.env
-
-/certs/ folder
-
-/transcripts/ folder
-
-MySQL password
-
-PCAP files (add only in final ZIP)
-
-📝 9. Author
-
-Name: Mehran
-Roll Number: 22i-0810
-Course: FAST-NUCES | CS-3002 Information Security
 
