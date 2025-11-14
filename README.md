@@ -1,111 +1,270 @@
+SecureChat – Assignment #2 (CS-3002 Information Security, Fall 2025)
 
-# SecureChat – Assignment #2 (CS-3002 Information Security, Fall 2025)
+A fully implemented, cryptographically secure, console-based chat system using:
 
-This repository is the **official code skeleton** for your Assignment #2.  
-You will build a **console-based, PKI-enabled Secure Chat System** in **Python**, demonstrating how cryptographic primitives combine to achieve:
+X.509 certificates (PKI)
 
-**Confidentiality, Integrity, Authenticity, and Non-Repudiation (CIANR)**.
+Diffie–Hellman key exchange
 
+AES-128 encryption (CBC + PKCS#7)
 
-## 🧩 Overview
+RSA SHA-256 signatures
 
-You are provided only with the **project skeleton and file hierarchy**.  
-Each file contains docstrings and `TODO` markers describing what to implement.
+Sequence numbers & timestamps
 
-Your task is to:
-- Implement the **application-layer protocol**.
-- Integrate cryptographic primitives correctly to satisfy the assignment spec.
-- Produce evidence of security properties via Wireshark, replay/tamper tests, and signed session receipts.
+Non-repudiation via transcript signing
 
-## 🏗️ Folder Structure
-```
+All cryptographic operations are performed at the application layer (no TLS).
+
+📁 Project Structure
 securechat-skeleton/
-├─ app/
-│  ├─ client.py              # Client workflow (plain TCP, no TLS)
-│  ├─ server.py              # Server workflow (plain TCP, no TLS)
-│  ├─ crypto/
-│  │  ├─ aes.py              # AES-128(ECB)+PKCS#7 (use cryptography lib)
-│  │  ├─ dh.py               # Classic DH helpers + key derivation
-│  │  ├─ pki.py              # X.509 validation (CA signature, validity, CN)
-│  │  └─ sign.py             # RSA SHA-256 sign/verify (PKCS#1 v1.5)
-│  ├─ common/
-│  │  ├─ protocol.py         # Pydantic message models (hello/login/msg/receipt)
-│  │  └─ utils.py            # Helpers (base64, now_ms, sha256_hex)
-│  └─ storage/
-│     ├─ db.py               # MySQL user store (salted SHA-256 passwords)
-│     └─ transcript.py       # Append-only transcript + transcript hash
-├─ scripts/
-│  ├─ gen_ca.py              # Create Root CA (RSA + self-signed X.509)
-│  └─ gen_cert.py            # Issue client/server certs signed by Root CA
-├─ tests/manual/NOTES.md     # Manual testing + Wireshark evidence checklist
-├─ certs/.keep               # Local certs/keys (gitignored)
-├─ transcripts/.keep         # Session logs (gitignored)
-├─ .env.example              # Sample configuration (no secrets)
-├─ .gitignore                # Ignore secrets, binaries, logs, and certs
-├─ requirements.txt          # Minimal dependencies
-└─ .github/workflows/ci.yml  # Compile-only sanity check (no execution)
-```
+├── app/
+│   ├── client.py
+│   ├── server.py
+│   ├── crypto/
+│   │   ├── aes.py
+│   │   ├── dh.py
+│   │   ├── pki.py
+│   │   └── sign.py
+│   ├── common/
+│   │   ├── protocol.py
+│   │   └── utils.py
+│   └── storage/
+│       ├── db.py
+│       └── transcript.py
+├── scripts/
+│   ├── gen_ca.py
+│   ├── gen_cert.py
+├── transcripts/
+├── certs/
+├── .env.example
+├── requirements.txt
+└── README.md
 
-## ⚙️ Setup Instructions
+⚙️ 1. Setup Instructions
+1.1 Clone & create virtual environment
+git clone <your-fork-url>
+cd securechat-skeleton
+python -m venv .venv
+.\.venv\Scripts\activate        # Windows
+pip install -r requirements.txt
 
-1. **Fork this repository** to your own GitHub account(using official nu email).  
-   All development and commits must be performed in your fork.
+1.2 Configure MySQL
 
-2. **Set up environment**:
-   ```bash
-   python3 -m venv .venv && source .venv/bin/activate
-   pip install -r requirements.txt
-   cp .env.example .env
-   ```
+Create database and user (via MySQL Workbench or CLI):
 
-3. **Initialize MySQL** (recommended via Docker):
-   ```bash
-   docker run -d --name securechat-db        -e MYSQL_ROOT_PASSWORD=rootpass        -e MYSQL_DATABASE=securechat        -e MYSQL_USER=scuser        -e MYSQL_PASSWORD=scpass        -p 3306:3306 mysql:8
-   ```
+CREATE DATABASE securechat;
+CREATE USER 'scuser'@'localhost' IDENTIFIED BY 'scpass';
+GRANT ALL PRIVILEGES ON securechat.* TO 'scuser'@'localhost';
+FLUSH PRIVILEGES;
 
-4. **Create tables**:
-   ```bash
-   python -m app.storage.db --init
-   ```
+1.3 Configure .env
 
-5. **Generate certificates** (after implementing the scripts):
-   ```bash
-   python scripts/gen_ca.py --name "FAST-NU Root CA"
-   python scripts/gen_cert.py --cn server.local --out certs/server
-   python scripts/gen_cert.py --cn client.local --out certs/client
-   ```
+Create .env in root directory:
 
-6. **Run components** (after implementation):
-   ```bash
-   python -m app.server
-   # in another terminal:
-   python -m app.client
-   ```
+DB_HOST=127.0.0.1
+DB_USER=scuser
+DB_PASS=scpass
+DB_NAME=securechat
 
-## 🚫 Important Rules
+1.4 Initialize database schema
+python -m app.storage.db --init
 
-- **Do not use TLS/SSL or any secure-channel abstraction**  
-  (e.g., `ssl`, HTTPS, WSS, OpenSSL socket wrappers).  
-  All crypto operations must occur **explicitly** at the application layer.
 
-- You are **not required** to implement AES, RSA, or DH math, Use any of the available libraries.
-- Do **not commit secrets** (certs, private keys, salts, `.env` values).
-- Your commits must reflect progressive development — at least **10 meaningful commits**.
+You should see:
 
-## 🧾 Deliverables
+[+] MySQL 'users' table created
 
-When submitting on Google Classroom (GCR):
+🔐 2. Generate Certificates (PKI)
+2.1 Create Root CA
+python scripts/gen_ca.py --name "FAST-NU Root CA"
 
-1. A ZIP of your **GitHub fork** (repository).
-2. MySQL schema dump and a few sample records.
-3. Updated **README.md** explaining setup, usage, and test outputs.
-4. `RollNumber-FullName-Report-A02.docx`
-5. `RollNumber-FullName-TestReport-A02.docx`
 
-## 🧪 Test Evidence Checklist
+Produces:
 
-✔ Wireshark capture (encrypted payloads only)  
-✔ Invalid/self-signed cert rejected (`BAD_CERT`)  
-✔ Tamper test → signature verification fails (`SIG_FAIL`)  
-✔ Replay test → rejected by seqno (`REPLAY`)  
-✔ Non-repudiation → exported transcript + signed SessionReceipt verified offline  
+certs/ca.key.pem
+
+certs/ca.crt.pem
+
+2.2 Issue certificates
+python scripts/gen_cert.py --cn server.local --out certs/server
+python scripts/gen_cert.py --cn client.local --out certs/client
+
+
+Produces:
+
+server.key.pem
+
+server.crt.pem
+
+client.key.pem
+
+client.crt.pem
+
+🚫 Do NOT commit any .key.pem files.
+
+🔄 3. Running the System
+3.1 Start Server
+python -m app.server
+
+
+You should see:
+
+[*] Listening on 0.0.0.0:9000
+
+3.2 Start Client
+python -m app.client
+
+
+Client performs:
+
+Certificate exchange
+
+Certificate validation
+
+Temporary DH → AES_TEMP_KEY
+
+Encrypted registration/login
+
+New DH session → SESSION_KEY
+
+Enter chat mode
+
+💬 4. Chat Usage
+Sending a message
+
+Type in client or server:
+
+> hello
+
+
+Messages are encrypted, signed, timestamped, and logged in transcript.
+
+Quit chat
+/quit
+
+
+Generates a SessionReceipt in transcripts/.
+
+🔒 5. Security Features
+5.1 PKI & Certificate Validation
+
+Client & Server send certificates
+
+Validate:
+
+CA signature
+
+validity period
+
+Common Name (CN)
+
+Rejects self-signed or mismatched CN (BAD_CERT)
+
+5.2 Encrypted Registration/Login
+
+Temporary DH exchange creates AES_TEMP_KEY
+
+Credentials encrypted with AES-128-CBC
+
+Server stores:
+
+salt (16 bytes)
+
+pwd_hash = SHA256(salt || password)
+
+5.3 Session DH & AES-128
+
+New DH exchange after login:
+
+SESSION_KEY = Trunc16(SHA256(shared_secret))
+
+
+Used for all chat messages.
+
+5.4 Secure Messaging
+
+Each message contains:
+
+{
+  "type": "msg",
+  "seqno": n,
+  "ts": unix_ms,
+  "ct": base64(AES(ciphertext)),
+  "sig": base64(RSA_SIGN(SHA256(seqno || ts || ct)))
+}
+
+
+Provides:
+
+Confidentiality (AES)
+
+Integrity (SHA256)
+
+Authenticity (RSA)
+
+Replay protection (seqno, ts)
+
+5.5 Non-Repudiation
+
+Each side maintains a transcript:
+
+seqno | timestamp | ciphertext | signature | peer_cert_fp
+
+
+At /quit, a SessionReceipt is created:
+
+{
+  "type": "receipt",
+  "peer": "client",
+  "first seq": 1,
+  "last seq": 5,
+  "transcript sha256": "....",
+  "sig": "RSA_SIGNATURE"
+}
+
+
+Receipt signature is verified offline.
+
+🧪 6. Testing & Evidence Required (All Passed)
+✔ Wireshark: encrypted packets only
+✔ BAD_CERT test
+✔ Tampering test → SIG_FAIL
+✔ Replay attack → REPLAY detected
+✔ Transcript SHA256 + Receipt signature verification
+✔ Login & register encrypted
+✔ DH secret → matching AES keys
+
+Screenshots included in TestReport.
+
+🗂 7. MySQL Schema Dump Example
+
+mysql_schema.sql:
+
+CREATE TABLE users (
+  email VARCHAR(255),
+  username VARCHAR(255) UNIQUE,
+  salt BINARY(16),
+  pwd_hash CHAR(64)
+);
+
+🚫 8. Items Not Committed to GitHub
+
+All private keys (*.key.pem)
+
+.env
+
+/certs/ folder
+
+/transcripts/ folder
+
+MySQL password
+
+PCAP files (add only in final ZIP)
+
+📝 9. Author
+
+Name: Mehran
+Roll Number: 22i-0810
+Course: FAST-NUCES | CS-3002 Information Security
+

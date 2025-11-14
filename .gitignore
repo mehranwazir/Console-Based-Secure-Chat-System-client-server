@@ -1,0 +1,91 @@
+# ===========================
+#   SECURITY-SENSITIVE FILES
+# ===========================
+certs/*.pem
+!certs/.keep
+
+# Private keys (NEVER COMMIT)
+# certs/ca.key.pem
+# certs/server.key.pem
+# certs/client.key.pem
+
+# Public certificates (but still reveals  CA names, validity dates and CA structure)
+#certs/ca.crt.pem
+#certs/server.crt.pem
+#certs/client.crt.pem
+
+
+# ===========================
+#   APP DATA & TRANSCRIPTS
+# ===========================
+
+# Transcript logs (non-repudiation files)
+transcripts/*.log
+transcripts/*.json
+
+# Attack testing scripts or temporary tampered packets
+attack_tests/
+scapy_replay.py
+tamper_test.py
+
+# PCAP / network captures
+*.pcap
+*.pcapng
+
+# Database / dumps
+*.sql
+*.db
+mysql_schema.sql
+
+
+# ===========================
+#   PYTHON ENV + BUILD FILES
+# ===========================
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Build / dist
+build/
+dist/
+*.egg-info
+
+
+# ===========================
+#   ENVIRONMENT VARIABLES
+# ===========================
+.env
+.env.local
+.env.production
+.env.development
+
+
+# ===========================
+#   EDITOR / OS JUNK FILES
+# ===========================
+# VSCode
+.vscode/
+
+# PyCharm
+.idea/
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# macOS
+.DS_Store
+
+
+# ===========================
+#   BACKUP FILES
+# ===========================
+*.bak
+*.tmp
+*.swp
+*.orig
