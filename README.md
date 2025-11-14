@@ -1,5 +1,7 @@
 # SecureChat – Assignment #2
 
+**Link:** https://github.com/mehranwazir/Console-Based-Secure-Chat-System-client-server.git
+
 **CS-3002 Information Security, Fall 2025**
 
 A console-based, PKI-enabled secure chat system implemented entirely at the **application layer (no TLS)**.
